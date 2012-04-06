@@ -1,0 +1,9 @@
+Author: Entroper
+Date: April 6, 2012
+
+This is a library to perform arithmetic in two fixed-point data formats.  The
+short format is a WORD, the long format a DWORD.  Each format places the point
+right in the middle of the bit range. This gives the short format a precision
+of ~0.0039 and a range of +127.996 to -128. The long format has precision
+~0.000015 and range +32767.999985 to -32768. Additionally, the long format has
+the benefit of the high-order word representing the integer part of the number.
