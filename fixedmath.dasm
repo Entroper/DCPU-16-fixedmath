@@ -8,6 +8,7 @@ ADD B, O
 SET C, O   ; see if the carry carried
 ADD B, Y   ; if it did, this won't
 BOR C, O   ; set O in either case
+SET O, C
 SET PC, POP
 
 :fxsubd
@@ -19,11 +20,12 @@ SET C, O
 SUB C, 1   ; C is now 0xFFFF if we borrowed from 0, 0x0000 otherwise
 SUB B, Y
 BOR C, O
+SET O, C
 SET PC, POP
 
 :fxmuls
 ; Multiply A by B, leave overflow in O
-; AA.AA x BB.BB = OOCC.DDxx
+; AA.AA * BB.BB = OOCC.DDxx
 ; CC.DD is the answer we want, XX gets thrown away, OO is the overflow
 
 MUL A, B   ; A = DDXX, O = OOCC
@@ -37,8 +39,38 @@ SET PC, POP
 
 :fxmuld
 ; Multiply BA by YX, leave overflow in O
-; BBAA.YYXX = OOOOCCCC.DDDDxxxx
-; unimplemented
+;           BBBB AAAA
+;         * YYYY XXXX
+; -------------------
+;           XXXX*AAAA
+;      XXXX*BBBB
+;      YYYY*AAAA
+; YYYY*BBBB
+; -----------------
+; OOOO BBBB AAAA xxxx
+
+SET I, A   ; we can't lose A yet
+MUL I, X   ; X*A
+SET C, O   ; save overflow of X*A for second column
+MUL A, Y   ; Y*A (duh), and begin accumulating in A
+SET Z, O   ; save overflow of Y*A for third column, begin accumulating in Z
+ADD A, C   ; accumulate overflow of X*A, we can now reuse C
+ADD Z, O   ; potential carry from the second column
+           ; the above cannot produce a propagating carry
+MUL X, B   ; X*B (duh)
+ADD Z, O   ; accumulate overflow of X*B for third column
+SET C, O   ; which can produce a carry
+ADD A, X   ; accumulate X*B
+ADD Z, O   ; this can carry again, and we accumulate the third column in Z
+ADD C, O   ; potential carry from third column
+MUL B, Y   ; Y*B, begin accumulating in B
+ADD C, O   ; add overflow of Y*B to fourth column
+           ; fourth column cannot overflow
+ADD B, Z   ; accumulate the rest of the third column
+ADD C, O   ; potential carry
+SET O, C   ; set O
+
+SET PC, POP
 
 :fxdivs
 ; Divide A by B
