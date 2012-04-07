@@ -1,0 +1,50 @@
+; There is no fxadds or fxsubs, because ADD and SUB are all you need.
+
+:fxaddd
+; Add YX to BA, leave overflow in O
+
+ADD A, X
+ADD B, O
+SET C, O   ; see if the carry carried
+ADD B, Y   ; if it did, this won't
+BOR C, O   ; set O in either case
+SET PC, POP
+
+:fxsubd
+; Subtract YX from BA, leave overflow in O
+
+SUB A, X
+ADD B, O   ; if this doesn't carry, then we borrowed from 0
+SET C, O
+SUB C, 1   ; C is now 0xFFFF if we borrowed from 0, 0x0000 otherwise
+SUB B, Y
+BOR C, O
+SET PC, POP
+
+:fxmuls
+; Multiply A by B, leave overflow in O
+; AA.AA x BB.BB = OOCC.DDxx
+; CC.DD is the answer we want, XX gets thrown away, OO is the overflow
+
+MUL A, B   ; A = DDXX, O = OOCC
+SET X, O   ; X = OOCC
+SHR A, 8   ; A = 00DD
+SHL X, 8   ; X = CC00, O = 00OO
+SET Y, O   ; Y = 00OO
+ADD A, X   ; A = CCDD
+SET O, Y   ; O = 00OO
+SET PC, POP
+
+:fxmuld
+; Multiply BA by YX, leave overflow in O
+; BBAA.YYXX = OOOOCCCC.DDDDxxxx
+; unimplemented
+
+:fxdivs
+; Divide A by B
+; unimplemented
+
+:fxdivd
+; Divide AB by XY
+; unimplemented
+
