@@ -71,7 +71,7 @@ SET O, C   ; set O
 SET PC, POP
 
 :fxdivs
-; Divide A by B
+; Divide A by B (UNSIGNED)
 ; AA.AA / BB.BB = OOCC.DDxx
 DIV A, B   ; A = OOCC, O = DDxx
 SET X, O   ; X = DDxx
