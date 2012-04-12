@@ -36,17 +36,18 @@ BOR A, X   ; A = CCDD
 SET PC, POP
 
 :fxmuld
-; Multiply BA by YX, leave overflow in O
+; Multiply BA by XC, leave overflow in O
 ;           BBBB AAAA
-;         * YYYY XXXX
+;         * XXXX CCCC
 ; -------------------
-;           XXXX*AAAA
-;      XXXX*BBBB
-;      YYYY*AAAA
-; YYYY*BBBB
+;           CCCC*AAAA
+;      CCCC*BBBB
+;      XXXX*AAAA
+; XXXX*BBBB
 ; -----------------
 ; OOOO BBBB AAAA xxxx
-
+SET C, X   ; set XC to YX to work with trig functions
+SET X, Y   ;     without a complete rewrite. -VEA
 SET I, A   ; we can't lose A yet
 MUL I, X   ; X*A
 SET C, O   ; save overflow of X*A for second column
@@ -81,6 +82,318 @@ BOR A, X   ; A = CCDD
 SET PC, POP
 
 :fxdivd
-; Divide AB by XY
-; unimplemented
+; pass in B.A/X.C, return B.A with overflow C
+; remainder of integer portion divide in JI
+; ViEtArmis/David Timm Apr. 09, 2012
 
+SET PUSH, 0 ; low part of quotient
+SET Y, 32768
+SET Z, 0
+SET I, 0
+SET J, 0
+
+; performs bit operations on higher word
+:div_loop1
+IFE Y, 0
+    SET PC, div_part2
+
+SHL J, 1
+SHL I, 1
+XOR J, O
+
+SET PUSH, Y
+AND Y, B
+IFG Y, 0
+    BOR I, 1
+SET Y, POP
+
+IFG J, X
+    SET PC, div_doit1
+IFE J, X
+    SET PC, div_chksml1
+SET PC, div_next1
+
+:div_chksml1
+IFG I, C
+    SET PC, div_doit1
+IFE I, C
+    SET PC, div_doit1
+SET PC, div_next1
+
+:div_doit1
+SUB I, C
+ADD J, O
+SUB J, X
+
+BOR Z, Y
+
+:div_next1
+SHR Y, 1
+
+SET PC, div_loop1
+
+; performs bit operations on lower word
+:div_part2
+SET Y, 32768
+:div_loop2
+IFE Y, 0
+    SET PC, div_done
+
+SHL J, 1
+SHL I, 1
+XOR J, O
+
+SET PUSH, Y
+AND Y, A
+IFG Y, 0
+    BOR I, 1
+SET Y, POP
+
+IFG J, X
+    SET PC, div_doit2
+IFE J, X
+    SET PC, div_chksml2
+SET PC, div_next2
+
+:div_chksml2
+IFG I, C
+    SET PC, div_doit2
+IFE I, C
+    SET PC, div_doit2
+SET PC, div_next2
+
+:div_doit2
+SUB I, C
+ADD J, O
+SUB J, X
+
+SET O, POP
+BOR O, Y
+SET PUSH, O
+
+:div_next2
+SHR Y, 1
+
+SET PC, div_loop2
+
+:div_done
+SET C, Z
+SET B, POP
+DIV I, X
+SET Z, 65535
+DIV Z, X
+MUL Z, J
+ADD I, Z
+SET A, I
+
+SET PC, POP
+
+:fxexpd
+; pass in B.A^C, return B.A
+; ViEtArmis/David Timm Apr. 09, 2012
+SET Y, C
+SET PUSH, B
+SET PUSH, A
+SET PUSH, Y
+SET X, B
+SET C, A
+
+:exp_loop
+IFE Y, 1
+    SET PC, exp_done
+JSR fxmuld
+SET POP, Y
+SUB Y, 1
+SET C, POP
+SET X, POP
+SET PUSH, X
+SET PUSH, C
+SET PUSH, Y
+SET PC, exp_loop
+
+:exp_done
+SET POP, POP
+SET PC, POP
+
+:fxsind
+; input B.A, return B.A = sin(B.A)
+; Z==1 if value is negative.
+; ViEtArmis/David Timm Apr. 11, 2012
+set push, 0
+set push, a
+set push, b
+jsr pi_d
+jsr cmpd
+ife z, 1
+    add pc, 2
+set pc, sin_cont
+
+; normalize to under pi, tracking if
+; this will make it negative
+jsr fxdivd
+set b, a
+set a, 0
+set j, pop
+set i, pop
+set z, pop
+set z, 1
+and z, b
+set push, z
+set push, i
+set push, j
+jsr pi_d
+jsr fxmuld
+set x, b
+set c, a
+set b, pop
+set a, pop
+sub a, c
+add b, o
+sub b, x
+set push, a
+set push, b
+
+:sin_cont
+set c, 3
+jsr fxexpd
+set x, 6
+set c, 0
+jsr fxdivd
+set x, a
+set b, pop
+set a, pop
+set i, a
+set j, b
+sub a, c
+add b, o
+sub b, x
+set push, a
+set push, b
+
+set a, i
+set b, j
+set push, i
+set push, j
+set c, 5
+jsr fxexpd
+set x, 120
+set c, 0
+jsr fxdivd
+set x, a
+set j, pop
+set i, pop
+set b, pop
+set a, pop
+add a, c
+add b, o
+add b, x
+
+set push, a
+set push, b
+set push, i
+set push, j
+set a, i
+set b, j
+set c, 7
+jsr fxexpd
+set x, 5040
+set c, 0
+jsr fxdivd
+set x, a
+set j, pop
+set i, pop
+set b, pop
+set a, pop
+sub a, c
+add b, o
+sub b, x
+
+set z, pop
+set pc, pop
+
+
+:fxcosd
+; input B.A, return B.A = cos(B.A)
+; Z==1 if value is negative.
+; ViEtArmis/David Timm Apr. 11, 2012
+jsr pid2_d
+add a, c
+add b, o
+add b, x
+
+jsr fxsind
+
+set pc, pop
+
+
+:fxtand
+; input B.A, return B.A = tan(B.A)
+; Z==1 if value is negative.
+; ViEtArmis/David Timm Apr. 11, 2012
+
+set push, a
+set push, b
+
+jsr fxcosd
+
+set i, a
+set j, b
+set b, pop
+set a, pop
+set push, z
+set push, i
+set push, j
+
+jsr fxsind
+
+set x, pop
+set c, pop
+add z, pop
+and z, 1
+
+div a, c
+set b, o
+
+set pc, pop
+
+
+:cmpd
+; input BA cmp XC, returns Z is 0xFFFF if BA<XC,
+; 0x0000 if BA==XC, and 0x0001 if BA>XC
+; ViEtArmis/David Timm Apr. 10, 2012
+IFG B, X
+    SET Z, 1
+IFG X, B
+    SET Z, 65535
+IFE B, X
+    JSR cmp_check
+SET PC, POP
+
+:cmp_check
+IFG A, C
+    SET Z, 1
+IFG C, A
+    SET Z, 65535
+IFE A, C
+    SET Z, 0
+
+SET PC, POP
+
+
+; pi in 16.16 fixed point
+:pi_d
+set c, 9279
+set x, 3
+set pc, pop
+
+; 2*pi in 16.16 fixed point
+:pix2_d
+set c, 18558
+set x, 6
+set pc, pop
+
+; pi/2 in 16.16 fixed point
+:pid2_d
+set c, 37408
+set x, 1
+set pc, pop
