@@ -4,23 +4,14 @@
 ; Add YX to BA, leave overflow in O
 
 ADD A, X
-ADD B, O
-SET C, O   ; see if the carry carried
-ADD B, Y   ; if it did, this won't
-BOR C, O   ; set O in either case
-SET O, C
+ADX B, Y
 SET PC, POP
 
 :fxsubd
 ; Subtract YX from BA, leave overflow in O
 
 SUB A, X
-ADD B, O   ; if this doesn't carry, then we borrowed from 0
-SET C, O
-SUB C, 1   ; C is now 0xFFFF if we borrowed from 0, 0x0000 otherwise
-SUB B, Y
-BOR C, O
-SET O, C
+SBX B, Y
 SET PC, POP
 
 :fxmuls
@@ -29,7 +20,7 @@ SET PC, POP
 ; CC.DD is the answer we want, XX gets thrown away, OO is the overflow
 
 MUL A, B   ; A = DDXX, O = OOCC
-SET X, O   ; X = OOCC
+SET X, EX  ; X = OOCC
 SHR A, 8   ; A = 00DD
 SHL X, 8   ; X = CC00, O = 00OO
 BOR A, X   ; A = CCDD
@@ -49,24 +40,24 @@ SET PC, POP
 
 SET I, A   ; we can't lose A yet
 MUL I, X   ; X*A
-SET C, O   ; save overflow of X*A for second column
+SET C, EX  ; save overflow of X*A for second column
 MUL A, Y   ; Y*A (duh), and begin accumulating in A
-SET Z, O   ; save overflow of Y*A for third column, begin accumulating in Z
+SET Z, EX  ; save overflow of Y*A for third column, begin accumulating in Z
 ADD A, C   ; accumulate overflow of X*A, we can now reuse C
-ADD Z, O   ; potential carry from the second column
+ADD Z, EX  ; potential carry from the second column
            ; the above cannot produce a propagating carry
 MUL X, B   ; X*B (duh)
-ADD Z, O   ; accumulate overflow of X*B for third column
-SET C, O   ; which can produce a carry
+ADD Z, EX  ; accumulate overflow of X*B for third column
+SET C, EX  ; which can produce a carry
 ADD A, X   ; accumulate X*B
-ADD Z, O   ; this can carry again, and we accumulate the third column in Z
-ADD C, O   ; potential carry from third column
+ADD Z, EX  ; this can carry again, and we accumulate the third column in Z
+ADD C, EX  ; potential carry from third column
 MUL B, Y   ; Y*B, begin accumulating in B
-ADD C, O   ; add overflow of Y*B to fourth column
+ADD C, EX  ; add overflow of Y*B to fourth column
            ; fourth column cannot overflow
 ADD B, Z   ; accumulate the rest of the third column
-ADD C, O   ; potential carry
-SET O, C   ; set O
+ADD C, EX  ; potential carry
+SET EX, C  ; set O
 
 SET PC, POP
 
@@ -74,7 +65,7 @@ SET PC, POP
 ; Divide A by B (UNSIGNED)
 ; AA.AA / BB.BB = OOCC.DDxx
 DIV A, B   ; A = OOCC, O = DDxx
-SET X, O   ; X = DDxx
+SET X, EX  ; X = DDxx
 SHR X, 8   ; X = 00DD
 SHL A, 8   ; A = CC00, O = 00OO
 BOR A, X   ; A = CCDD
