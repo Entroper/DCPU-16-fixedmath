@@ -1,42 +1,42 @@
 ; There is no fxadds or fxsubs, because ADD and SUB are all you need.
 
 :fxaddd
-; Add YX to BA, leave overflow in O
+; Add YX to BA, leave overflow in EX
 
 ADD A, X
 ADX B, Y
 SET PC, POP
 
 :fxsubd
-; Subtract YX from BA, leave overflow in O
+; Subtract YX from BA, leave underflow in EX
 
 SUB A, X
 SBX B, Y
 SET PC, POP
 
 :fxmuls
-; Multiply A by B, leave overflow in O
+; Multiply A by B, leave overflow in EX
 ; AA.AA * BB.BB = OOCC.DDxx
 ; CC.DD is the answer we want, XX gets thrown away, OO is the overflow
 
-MUL A, B   ; A = DDXX, O = OOCC
+MUL A, B   ; A = DDXX, EX = OOCC
 SET X, EX  ; X = OOCC
 SHR A, 8   ; A = 00DD
-SHL X, 8   ; X = CC00, O = 00OO
+SHL X, 8   ; X = CC00, EX = 00OO
 BOR A, X   ; A = CCDD
 SET PC, POP
 
 :fxmuld
-; Multiply BA by YX, leave overflow in O
-;           BBBB AAAA
-;         * YYYY XXXX
+; Multiply B.A by Y.X, leave overflow in EX
+;           BBBB.AAAA
+;         * YYYY.XXXX
 ; -------------------
 ;           XXXX*AAAA
 ;      XXXX*BBBB
 ;      YYYY*AAAA
 ; YYYY*BBBB
 ; -----------------
-; OOOO BBBB AAAA xxxx
+; OOOO BBBB.AAAA xxxx
 
 SET I, A   ; we can't lose A yet
 MUL I, X   ; X*A
@@ -57,17 +57,17 @@ ADD C, EX  ; add overflow of Y*B to fourth column
            ; fourth column cannot overflow
 ADD B, Z   ; accumulate the rest of the third column
 ADD C, EX  ; potential carry
-SET EX, C  ; set O
+SET EX, C  ; set EX
 
 SET PC, POP
 
 :fxdivs
 ; Divide A by B (UNSIGNED)
 ; AA.AA / BB.BB = OOCC.DDxx
-DIV A, B   ; A = OOCC, O = DDxx
+DIV A, B   ; A = OOCC, EX = DDxx
 SET X, EX  ; X = DDxx
 SHR X, 8   ; X = 00DD
-SHL A, 8   ; A = CC00, O = 00OO
+SHL A, 8   ; A = CC00, EX = 00OO
 BOR A, X   ; A = CCDD
 SET PC, POP
 
